@@ -91,7 +91,8 @@ app.post("/upload", (req, res) => {
             // Video title and description
             snippet: {
                 title:title,
-                description:description
+                description:description,
+                tags:tags
             },
             // I don't want to spam my subscribers
             status: {
