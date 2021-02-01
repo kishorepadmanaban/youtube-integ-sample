@@ -2,6 +2,7 @@ const fs = require("fs");
 const express = require("express");
 const multer = require("multer");
 const OAuth2Data = require("./credentials.json");
+const axios = require("axios");
 var title, description;
 var tags = [];
 
@@ -22,7 +23,7 @@ var authed = false;
 
 // If modifying these scopes, delete token.json.
 const SCOPES =
-  "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/userinfo.profile";
+  "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/youtubepartner";
 
 app.set("view engine", "ejs");
 
@@ -72,52 +73,79 @@ app.get("/", (req, res) => {
 
 app.post("/upload", (req, res) => {
   upload(req, res, function (err) {
-    if (err) {
-      console.log(err);
-      return res.end("Something went wrong");
-    } else {
-      console.log(req.file.path);
-      title = req.body.title;
-      description = req.body.description;
-      tags = req.body.tags;
-      console.log(title);
-      console.log(description);
-      console.log(tags);
+    // if (err) {
+    //   console.log(err);
+    //   return res.end("Something went wrong");
+    // } else {
+    //   console.log(req.file.path);
+    //   title = req.body.title;
+    //   description = req.body.description;
+    //   tags = req.body.tags;
+    //   console.log(title);
+    //   console.log(description);
+    //   console.log(tags);
       const youtube = google.youtube({ version: "v3", auth: oAuth2Client });
-      console.log(youtube)
-      youtube.videos.insert(
-        {
-          resource: {
-            // Video title and description
-            snippet: {
-                title:title,
-                description:description,
-                tags:tags
-            },
-            // I don't want to spam my subscribers
-            status: {
-              privacyStatus: "private",
-            },
-          },
-          // This is for the callback function
-          part: "snippet,status",
+    //   console.log(youtube)
+    //   youtube.videos.insert(
+    //     {
+    //       resource: {
+    //         // Video title and description
+    //         snippet: {
+    //             title:title,
+    //             description:description,
+    //             tags:tags
+    //         },
+    //         // I don't want to spam my subscribers
+    //         status: {
+    //           privacyStatus: "private",
+    //         },
+    //       },
+    //       // This is for the callback function
+    //       part: "snippet,status",
 
-          // Create the readable stream to upload the video
-          media: {
-            body: fs.createReadStream(req.file.path)
-          },
+    //       // Create the readable stream to upload the video
+    //       media: {
+    //         body: fs.createReadStream(req.file.path)
+    //       },
+    //     },
+    //     (err, data) => {
+    //       if(err) throw err
+    //       console.log(data)
+    //       console.log("Done.");
+    //       fs.unlinkSync(req.file.path);
+    //       res.render("success", { name: name, pic: pic, success: true });
+    //     }
+    //   );
+    // }
+    youtube.search.list(
+        {
+          // This is for the callback function
+          part: "snippet",
+          forMine: true,
+          type: 'video'
         },
         (err, data) => {
           if(err) throw err
-          console.log(data)
+          console.log(JSON.stringify(data.data))
           console.log("Done.");
-          fs.unlinkSync(req.file.path);
-          res.render("success", { name: name, pic: pic, success: true });
-        }
-      );
-    }
+          let videos = ""
+          data.data.items.map((item) => {
+            videos = videos + item.id.videoId +","
+          })
+          youtube.videos.list(
+            {
+              part: "contentDetails,statistics",
+              id: videos
+            },
+            (err, data) => {
+              if(err) throw err
+              console.log("videosss", JSON.stringify(data.data))
+            })
+        },
+      )
   });
 });
+
 
 app.get("/logout", (req, res) => {
   authed = false;
@@ -125,8 +153,10 @@ app.get("/logout", (req, res) => {
 });
 
 app.get("/google/callback", function (req, res) {
-  const code = req.query.code;
+    console.log('testtt');
+    const code = req.query.code;
   if (code) {
+    console.log('testtt');
     // Get an access token based on our OAuth code
     oAuth2Client.getToken(code, function (err, tokens) {
       if (err) {
@@ -141,6 +171,8 @@ app.get("/google/callback", function (req, res) {
         res.redirect("/");
       }
     });
+  }else{
+    console.log('testtt');
   }
 });
 
